@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GlycoGen: Glycan Structure Prediction with Crystallizing Flows | NeurIPS 2026</title>
+  <meta name="description" content="GlycoGen pairs a 50M-parameter Discrete Flow Matching model with Crystallizing Flows to predict glycan structures from tandem mass spectra at 92.67% accuracy and up to 21,883 spectra/sec." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f8f9fa;
+      --surface-alt: #f1f3f4;
+      --border: #dadce0;
+      --text: #202124;
+      --text-secondary: #5f6368;
+      --blue: #1a73e8;
+      --blue-light: #e8f0fe;
+      --blue-dark: #174ea6;
+      --green: #137333;
+      --green-light: #e6f4ea;
+      --amber: #e37400;
+      --amber-light: #fef7e0;
+      --red: #c5221f;
+      --red-light: #fce8e6;
+      --radius: 12px;
+      --shadow-sm: 0 1px 3px rgba(60,64,67,0.08), 0 1px 2px rgba(60,64,67,0.06);
+      --shadow-md: 0 4px 12px rgba(60,64,67,0.10), 0 1px 3px rgba(60,64,67,0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Hero Header */
+    header.hero {
+      padding: 64px 0 40px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+    }
+
+    .venue-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--blue-light);
+      color: var(--blue-dark);
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      margin-bottom: 20px;
+    }
+
+    h1.paper-title {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: clamp(2rem, 4.2vw, 3.1rem);
+      font-weight: 600;
+      line-height: 1.18;
+      color: var(--text);
+      max-width: 840px;
+      margin: 0 auto 20px;
+      letter-spacing: -0.015em;
+    }
+
+    .authors {
+      font-size: 1.12rem;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .authors a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    .authors a:hover {
+      text-decoration: underline;
+    }
+
+    .affiliation {
+      font-size: 0.94rem;
+      color: var(--text-secondary);
+      margin-bottom: 28px;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 999px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+      border-color: #bdc1c6;
+    }
+
+    .btn-primary {
+      background: var(--blue);
+      color: #ffffff;
+      border-color: var(--blue);
+    }
+
+    .btn-primary:hover {
+      background: var(--blue-dark);
+      border-color: var(--blue-dark);
+    }
+
+    /* Metric Strip */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+      margin-top: 12px;
+      text-align: left;
+    }
+
+    .metric-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .metric-card .value {
+      font-size: 1.85rem;
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-card .label {
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .metric-card .sub {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    /* Sections */
+    section {
+      padding: 52px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    section:last-of-type {
+      border-bottom: none;
+    }
+
+    h2.section-title {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    p.lead {
+      font-size: 1.05rem;
+      color: #3c4043;
+      margin-bottom: 20px;
+    }
+
+    .figure-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin: 24px 0;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .figure-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 6px;
+    }
+
+    .figure-caption {
+      margin-top: 14px;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    .figure-caption strong {
+      color: var(--text);
+    }
+
+    /* Interactive Crystallizing Flows Simulator */
+    .sim-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-top: 24px;
+    }
+
+    .sim-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .sim-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sim-btn {
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .sim-btn:hover {
+      background: var(--blue-light);
+      border-color: var(--blue);
+      color: var(--blue-dark);
+    }
+
+    .sim-tokens {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    @media (max-width: 720px) {
+      .sim-tokens {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .token-slot {
+      border-radius: 10px;
+      padding: 12px 8px;
+      text-align: center;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      transition: all 0.2s ease;
+    }
+
+    .token-slot .pos {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 4px;
+    }
+
+    .token-slot .tok {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.86rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      word-break: break-all;
+    }
+
+    .bar-bg {
+      height: 6px;
+      background: #e8eaed;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      transition: width 0.2s ease;
+    }
+
+    /* Two-column cards */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 760px) {
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .info-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+    }
+
+    .info-card h3 {
+      font-size: 1.08rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-card p, .info-card li {
+      font-size: 0.93rem;
+      color: #3c4043;
+    }
+
+    .info-card ul {
+      padding-left: 18px;
+      margin-top: 8px;
+    }
+
+    .info-card li {
+      margin-bottom: 6px;
+    }
+
+    /* Data Table */
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: var(--surface);
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr.highlight-row {
+      background: #f4f8ff;
+      font-weight: 600;
+    }
+
+    .num {
+      text-align: right;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+    }
+
+    /* BibTeX */
+    .bibtex-box {
+      position: relative;
+      background: #1e293b;
+      color: #f8fafc;
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.84rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      margin-top: 14px;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(255,255,255,0.12);
+      color: #ffffff;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255,255,255,0.22);
+    }
+
+    footer {
+      padding: 36px 0 56px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.86rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+  <header class="hero">
+    <div class="container">
+      <div class="venue-badge">NeurIPS 2026 &middot; Main Track</div>
+      <h1 class="paper-title">GlycoGen: Glycan Structure Prediction with Crystallizing Flows</h1>
+      <div class="authors">
+        <a href="https://romainlacombe.com" target="_blank" rel="noopener">Romain Lacombe</a>
+      </div>
+      <div class="affiliation">Independent Researcher &middot; <code>romain@romainlacombe.com</code></div>
+
+      <div class="cta-row">
+        <a href="assets/GlycoGen_NeurIPS_2026.pdf" class="btn btn-primary" target="_blank">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Read Paper (PDF)
+        </a>
+        <a href="https://github.com/rlacombe/GlycoGen" class="btn" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+          Code (GitHub)
+        </a>
+        <a href="https://huggingface.co/datasets/rlacombe/candycrunch-v2-benchmark" class="btn" target="_blank" rel="noopener">
+          <span>&#129303;</span> Benchmark &amp; Checkpoints (HF)
+        </a>
+        <a href="#bibtex" class="btn">
+          BibTeX Citation
+        </a>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="value" style="color: var(--blue);">92.67%</div>
+          <div class="label">Top-1 Per-Spectrum Accuracy</div>
+          <div class="sub">+11.7 pp over leak-free GlycoBART (76,774 test spectra, 3 seeds)</div>
+        </div>
+        <div class="metric-card">
+          <div class="value" style="color: var(--green);">93.31%</div>
+          <div class="label">Seen-Structure Graph Accuracy</div>
+          <div class="sub">Approaches the single-spectrum CID MS/MS Bayes ceiling</div>
+        </div>
+        <div class="metric-card">
+          <div class="value" style="color: var(--amber);">21,883 /s</div>
+          <div class="label">Batched Throughput (K=1)</div>
+          <div class="sub">13.9&times; (K=8) to 61&times; (K=1) faster than greedy GlycoBART on H200</div>
+        </div>
+        <div class="metric-card">
+          <div class="value" style="color: var(--text);">8.6 ms</div>
+          <div class="label">Unbatched Streaming Latency</div>
+          <div class="sub">Meets 100 Hz live LC-MS/MS acquisition cadence</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Abstract -->
+    <section id="abstract">
+      <h2 class="section-title">Abstract</h2>
+      <p class="lead">
+        Glycosylation is among the most abundant post-translational modifications in biology, governing cellular signaling and the foundational mechanisms of immunity. Because glycans cannot be sequenced from a genetic template, their structure must be inferred directly from tandem mass spectrometry (MS/MS). Modern instruments acquire 100 to 200 spectra per second, yet the prior open-vocabulary state of the art, GlycoBART, is a 207M autoregressive transformer whose sequential decoding precludes live acquisition and large-scale glycomics. Discrete Flow Matching and masked diffusion remove this sequential bottleneck by generating all token positions in parallel, provided a low-step sampler preserves structural accuracy. We introduce <strong>GlycoGen</strong>, a 50M-parameter Discrete Flow Matching model over fragment spectra, paired with <strong>Crystallizing Flows</strong>, a deterministic sampler that runs out-of-the-box via mixture embeddings with no retraining. Crystallizing Flows integrate per-token distributions on the simplex, snap each position to a one-hot vector once its argmax leaves the mask, and exit early once all positions crystallize. On the 76,774-spectrum CandyCrunch v2 benchmark, GlycoGen reaches <strong>92.67%</strong> top-1 accuracy in 17 passes and <strong>90.19%</strong> in a single pass, surpassing GlycoBART by 11.7 percentage points with a 14&times; to 61&times; speedup. Setting a new state of the art in open-vocabulary glycan structure prediction, GlycoGen makes the glycome readable in real time and at scale.
+      </p>
+
+      <div class="figure-card">
+        <img src="assets/pipeline.png" alt="GlycoGen end-to-end architecture and data pipeline" />
+        <div class="figure-caption">
+          <strong>Figure 1: GlycoGen end-to-end pipeline.</strong> Low-energy CID cleaves glycosidic bonds of branched glycans streamed at 100&ndash;200 Hz. A 4-layer Transformer Spectrum Encoder maps 64 binned intensity/mass-offset patches and one precursor <em>m/z</em> token into continuous embeddings, and an 8-layer bidirectional DFM decoder generates all 74-token atomic IUPAC positions in parallel via Crystallizing Flows.
+        </div>
+      </div>
+    </section>
+
+    <!-- MS/MS Primer -->
+    <section id="msms-primer">
+      <h2 class="section-title">Reading Branched Sugar Trees from Fragment Spectra</h2>
+      <p class="lead">
+        Unlike linear proteins or nucleic acids, glycans are branched sugar trees serialized into bracketed IUPAC-condensed strings. Low-energy collision-induced dissociation (CID) cleaves glycosidic bonds into neutral monosaccharide losses, while regioisomers lacking cross-ring cleavages establish an intrinsic single-spectrum Bayes error ceiling.
+      </p>
+
+      <div class="figure-card">
+        <img src="assets/msms_primer.png" alt="Tandem mass spectrometry primer for branched glycans" />
+        <div class="figure-caption">
+          <strong>Figure 2: Glycan MS/MS primer.</strong> <strong>(a)</strong> Branched N-glycans (e.g., on IgG antibodies) serialize into bracketed IUPAC strings tokenized into a 74-token atomic vocabulary. <strong>(b)</strong> Low-energy CID cleaves glycosidic bonds into neutral monosaccharide mass losses (&Delta;<em>m/z</em>), while regioisomers lacking cross-ring cleavages establish an intrinsic single-spectrum Bayes error ceiling.
+        </div>
+      </div>
+    </section>
+
+    <!-- Crystallizing Flows + Interactive Widget -->
+    <section id="crystallizing-flows">
+      <h2 class="section-title">Crystallizing Flows: Deterministic Integration on the Simplex</h2>
+      <p class="lead">
+        Standard mask-source CTMC Euler sampling draws a discrete categorical token at each step and discards the rest of the predictive distribution. At low step budgets, random draws compound early mistakes and cause 2-step accuracy to regress below a single forward pass.
+      </p>
+      <p class="lead">
+        <strong>Crystallizing Flows</strong> instead propagate the full per-position probability vector on the simplex and snap each position to a frozen one-hot vector the exact moment its argmax leaves <code>&lt;mask&gt;</code>. Because all positions crystallize near the midpoint of the trajectory (<em>t</em> &approx; 0.5), every spectrum exits early in roughly <em>K</em>/2 + 1 forward passes with zero inference hyperparameters.
+      </p>
+
+      <div class="figure-card">
+        <img src="assets/method.png" alt="Crystallizing Flows mechanic across 16 steps" />
+        <div class="figure-caption">
+          <strong>Figure 3: Crystallizing Flows mechanic.</strong> <span style="color:var(--blue);font-weight:600;">Blue cells</span> show soft distributions on the simplex whose argmax is still <code>&lt;mask&gt;</code>. <span style="color:var(--amber);font-weight:600;">Amber cells</span> show crystallized positions whose argmax has flipped to a glycan token, snapping the state to a frozen one-hot vector. The spectrum exits early at the <span style="color:var(--red);font-weight:600;">red dashed line</span> once all positions have crystallized.
+        </div>
+      </div>
+
+      <!-- Interactive Rollout Demo -->
+      <div class="sim-box">
+        <div class="sim-header">
+          <div>
+            <strong style="font-size:0.98rem;">Interactive Simplex Rollout (<em>K</em> = 16)</strong>
+            <div style="font-size:0.82rem;color:var(--text-secondary);" id="sim-status">
+              Step k = 0 (t = 0.00) &middot; 0 / 8 positions crystallized
+            </div>
+          </div>
+          <div class="sim-controls">
+            <button class="sim-btn" id="btn-prev">&larr; Prev Step</button>
+            <button class="sim-btn" id="btn-play">&#9654; Auto-Play</button>
+            <button class="sim-btn" id="btn-next">Next Step &rarr;</button>
+            <input type="range" id="step-slider" min="0" max="15" value="0" style="width:130px;accent-color:var(--blue);" />
+          </div>
+        </div>
+        <div class="sim-tokens" id="sim-tokens-grid"></div>
+      </div>
+    </section>
+
+    <!-- Results & Pareto Frontier -->
+    <section id="results">
+      <h2 class="section-title">Pareto-Dominance &amp; Controlled Design Ablations</h2>
+      <p class="lead">
+        Across the 76,774 test spectra of the CandyCrunch v2 benchmark, GlycoGen with Crystallizing Flows strictly Pareto-dominates standard CTMC Euler sampling, our matched-architecture 50M autoregressive baseline (GlycoGen-AR), and the 207M GlycoBART model across both accuracy and latency.
+      </p>
+
+      <div class="figure-card">
+        <img src="assets/pareto_ms.png" alt="Pareto frontier of accuracy vs measured wall-clock latency" />
+        <div class="figure-caption">
+          <strong>Figure 4: Accuracy vs. wall-clock latency on the CandyCrunch v2 benchmark (n = 76,774).</strong> DFM + Crystallizing Flows (<span style="color:var(--blue);font-weight:600;">deep blue</span>) and MDLM + Crystallizing Flows (<span style="color:var(--green);font-weight:600;">green</span>) Pareto-dominate CTMC Euler on both objectives, 50M GlycoGen-AR, and 207M GlycoBART across low step budgets.
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Model &amp; Operating Point</th>
+              <th class="num">Effective NFE</th>
+              <th class="num">Latency (ms/spec)</th>
+              <th class="num">Throughput (spec/s)</th>
+              <th class="num">Top-1 Accuracy (3 seeds)</th>
+              <th class="num">Speedup</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="highlight-row">
+              <td>GlycoGen-DFM + Crystallizing Flows (K = 1, one-pass)</td>
+              <td class="num">1</td>
+              <td class="num">0.046</td>
+              <td class="num">21,883</td>
+              <td class="num">90.19% &plusmn; 0.04%</td>
+              <td class="num">61&times;</td>
+            </tr>
+            <tr class="highlight-row">
+              <td>GlycoGen-DFM + Crystallizing Flows (K = 8, recommended)</td>
+              <td class="num">5</td>
+              <td class="num">0.201</td>
+              <td class="num">4,975</td>
+              <td class="num">92.51% &plusmn; 0.06%</td>
+              <td class="num">13.9&times;</td>
+            </tr>
+            <tr class="highlight-row">
+              <td>GlycoGen-DFM + Crystallizing Flows (K = 32)</td>
+              <td class="num">17</td>
+              <td class="num">0.675</td>
+              <td class="num">1,481</td>
+              <td class="num"><strong>92.67% &plusmn; 0.05%</strong></td>
+              <td class="num">4.1&times;</td>
+            </tr>
+            <tr>
+              <td>GlycoGen-MDLM + Crystallizing Flows (K = 32)</td>
+              <td class="num">17</td>
+              <td class="num">0.676</td>
+              <td class="num">1,479</td>
+              <td class="num">92.47% &plusmn; 0.11%</td>
+              <td class="num">4.1&times;</td>
+            </tr>
+            <tr>
+              <td>GlycoGen-AR (50M matched autoregressive control, beam 1&ndash;32)</td>
+              <td class="num">33 &ndash; 1,045</td>
+              <td class="num">2.21 &ndash; 72.66</td>
+              <td class="num">452 &ndash; 14</td>
+              <td class="num">90.38% &plusmn; 0.05%</td>
+              <td class="num">1.3&times; &ndash; 0.04&times;</td>
+            </tr>
+            <tr>
+              <td>GlycoBART Reproduction (207M, beam 1 top-1 / beam 32 top-5)</td>
+              <td class="num">23 / 720</td>
+              <td class="num">2.80 / 91.21</td>
+              <td class="num">357 / 11</td>
+              <td class="num">80.92% / 86.35%</td>
+              <td class="num">1.0&times; / 0.03&times;</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Spectrum Patching & Error Analysis -->
+    <section id="architecture-and-regimes">
+      <h2 class="section-title">Dual-Channel Spectrum Patching &amp; Evaluation Regimes</h2>
+      <p class="lead">
+        Rather than truncating spectra to top-<em>N</em> discrete peak tokens and predicting lossy antenna motifs, GlycoGen encodes the entire fragment spectrum as 64 continuous dual-channel patches of L1-normalized intensities and exact sub-bin mass offsets while generating atomic IUPAC tokens directly (+9.5 pp over GlycoBART).
+      </p>
+
+      <div class="figure-card">
+        <img src="assets/spectrum_patching.png" alt="Dual-channel continuous spectrum patching encoder" />
+        <div class="figure-caption">
+          <strong>Figure 5: Dual-channel spectrum patching.</strong> Raw peaks across [39.714, 3000.0] Da are binned into 2,048 channels storing both summed L1-normalized intensity and exact sub-bin mass remainder, reshaped into 64 continuous patch tokens plus one precursor <em>m/z</em> token (with zero instrument or retention-time metadata).
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="info-card">
+          <h3><span style="color:var(--blue);">&#9679;</span> Approaching the Single-Spectrum Bayes Ceiling</h3>
+          <p>
+            On the 76,203 test spectra whose target glycan appears in training, GlycoGen reaches <strong>93.31% exact graph accuracy</strong>, and <strong>99.1%</strong> of generated strings are syntactically valid IUPAC glycans. Among the remaining mismatches:
+          </p>
+          <ul>
+            <li><strong>41.8%</strong> share the exact ground-truth monosaccharide composition and differ only in linkage or branch isomerism (where single-spectrum CID lacks cross-ring cleavage ions or where reference studies differ in wildcard notation such as <code>a2-?</code>).</li>
+            <li><strong>38.4%</strong> differ by a single labile fucose or sialic acid residue subject to in-source neutral loss or co-elution.</li>
+            <li>Only <strong>19.8%</strong> of errors (<strong>1.3% of the test set</strong>) correspond to genuine core or branch topology mistakes.</li>
+          </ul>
+        </div>
+
+        <div class="info-card">
+          <h3><span style="color:var(--green);">&#9679;</span> Emergent Molecular Graph Generalization</h3>
+          <p>
+            Because two different IUPAC strings can serialize the same branched glycan tree under different branch traversal orders, we isolate 66 test spectra whose target molecular graph appears in training only under a different IUPAC string spelling:
+          </p>
+          <ul>
+            <li><strong>GlycoGen-MDLM + CF:</strong> 62.1% top-1 graph accuracy</li>
+            <li><strong>GlycoGen-DFM + CF:</strong> 60.6% top-1 graph accuracy</li>
+            <li><strong>GlycoBART (207M AR):</strong> 13.6% top-1 graph accuracy</li>
+          </ul>
+          <p style="margin-top:8px;">
+            Bidirectional denoising learns the underlying molecular graph topology from string supervision alone.
+          </p>
+        </div>
+      </div>
+
+      <div class="figure-card" style="max-width:720px; margin:28px auto 0;">
+        <img src="assets/qualitative_snfg.png" alt="Qualitative SNFG predictions across the four evaluation regimes" />
+        <div class="figure-caption">
+          <strong>Figure 6: Qualitative SNFG predictions across the four evaluation regimes.</strong> <strong>(a)</strong> Exact branched N-glycan recovery (93.3% seen-graph regime). <strong>(b)</strong> Graph-isomorphic generalization to an unseen IUPAC branch serialization (60.6% DFM vs. 13.6% GlycoBART). <strong>(c)</strong> Single-spectrum CID regioisomer ambiguity (&beta;1-3 vs. &beta;1-4 Gal, approaching the Bayes error ceiling). <strong>(d)</strong> Fallback to a valid core motif on a rare unseen methylated topology (<code>ManOMe</code>).
+        </div>
+      </div>
+    </section>
+
+    <!-- BibTeX -->
+    <section id="bibtex">
+      <h2 class="section-title">Citation</h2>
+      <p class="lead">If you use GlycoGen or Crystallizing Flows in your research, please cite:</p>
+      <div class="bibtex-box">
+        <button class="copy-btn" onclick="copyBibtex()" id="copy-btn">Copy BibTeX</button>
+<pre id="bibtex-content">@inproceedings{lacombe2026glycogen,
+  title     = {GlycoGen: Glycan Structure Prediction with Crystallizing Flows},
+  author    = {Lacombe, Romain},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2026}
+}</pre>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      GlycoGen &middot; NeurIPS 2026 Camera-Ready &middot; <a href="https://romainlacombe.com" style="color:inherit;">romainlacombe.com</a>
+    </div>
+  </footer>
+
+  <script>
+    const tokens = [
+      { pos: "x₁", label: "Gal",   snap: 7 },
+      { pos: "x₂", label: "(",     snap: 9 },
+      { pos: "x₃", label: "b1-4",  snap: 6 },
+      { pos: "x₄", label: ")",     snap: 11 },
+      { pos: "x₅", label: "[",     snap: 8 },
+      { pos: "x₆", label: "Fuc",   snap: 10 },
+      { pos: "x₇", label: "a1-3",  snap: 7 },
+      { pos: "x₈", label: "]",     snap: 12 }
+    ];
+
+    const grid = document.getElementById("sim-tokens-grid");
+    const slider = document.getElementById("step-slider");
+    const statusEl = document.getElementById("sim-status");
+    let timer = null;
+
+    function renderStep(k) {
+      grid.innerHTML = "";
+      let crystCount = 0;
+      const earlyExitStep = 12;
+
+      tokens.forEach((t) => {
+        const isCryst = k >= t.snap;
+        const justSnapped = k === t.snap;
+        if (isCryst) crystCount++;
+
+        const progress = isCryst ? 1.0 : Math.min(0.92, (k + 1) / (t.snap + 0.8));
+        const slot = document.createElement("div");
+        slot.className = "token-slot";
+
+        if (k > earlyExitStep) {
+          slot.style.background = "#fef7e0";
+          slot.style.borderColor = "#e37400";
+          slot.style.opacity = "0.82";
+        } else if (justSnapped) {
+          slot.style.background = "#fef7e0";
+          slot.style.borderColor = "#b06000";
+          slot.style.boxShadow = "0 0 0 2px rgba(227,116,0,0.25)";
+        } else if (isCryst) {
+          slot.style.background = "#fef7e0";
+          slot.style.borderColor = "#e37400";
+        } else {
+          slot.style.background = "#e8f0fe";
+          slot.style.borderColor = "#1a73e8";
+        }
+
+        const tokText = isCryst ? t.label : "<mask>";
+        const tokColor = isCryst ? "#b06000" : "#174ea6";
+        const barColor = isCryst ? "#e37400" : "#1a73e8";
+
+        slot.innerHTML = `
+          <div class="pos">${t.pos} &middot; snap k=${t.snap}</div>
+          <div class="tok" style="color:${tokColor}">${tokText}</div>
+          <div class="bar-bg">
+            <div class="bar-fill" style="width:${Math.round(progress * 100)}%;background:${barColor};"></div>
+          </div>
+        `;
+        grid.appendChild(slot);
+      });
+
+      const tVal = (k / 16).toFixed(2);
+      if (k >= earlyExitStep) {
+        statusEl.innerHTML = `<strong style="color:var(--red);">Step k = ${k} (t = ${tVal}) &middot; Early Exit Triggered at k = ${earlyExitStep}! All 8/8 positions crystallized.</strong>`;
+      } else {
+        statusEl.textContent = `Step k = ${k} (t = ${tVal}) · ${crystCount} / 8 positions crystallized`;
+      }
+    }
+
+    slider.addEventListener("input", (e) => renderStep(parseInt(e.target.value, 10)));
+    document.getElementById("btn-prev").addEventListener("click", () => {
+      slider.value = Math.max(0, parseInt(slider.value, 10) - 1);
+      renderStep(parseInt(slider.value, 10));
+    });
+    document.getElementById("btn-next").addEventListener("click", () => {
+      slider.value = Math.min(15, parseInt(slider.value, 10) + 1);
+      renderStep(parseInt(slider.value, 10));
+    });
+    document.getElementById("btn-play").addEventListener("click", (e) => {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+        e.target.innerHTML = "&#9654; Auto-Play";
+      } else {
+        if (parseInt(slider.value, 10) >= 15) slider.value = 0;
+        e.target.innerHTML = "&#9208; Pause";
+        timer = setInterval(() => {
+          let next = parseInt(slider.value, 10) + 1;
+          if (next > 15) {
+            clearInterval(timer);
+            timer = null;
+            e.target.innerHTML = "&#9654; Auto-Play";
+            return;
+          }
+          slider.value = next;
+          renderStep(next);
+        }, 550);
+      }
+    });
+
+    function copyBibtex() {
+      const text = document.getElementById("bibtex-content").innerText;
+      navigator.clipboard.writeText(text);
+      const btn = document.getElementById("copy-btn");
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = "Copy BibTeX"; }, 1800);
+    }
+
+    renderStep(0);
+  </script>
+</body>
+</html>

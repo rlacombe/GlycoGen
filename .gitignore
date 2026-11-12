@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Local outputs and caches
+output/
+outputs/
+*.log
+*.pkl
+!tests/*.pkl
+
+# Env / editor / OS
+.env
+.venv/
+venv/
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*~
+
+# Big artifacts (checkpoints live on HF Hub, not in git)
+*.pt
+*.ckpt
+*.safetensors
+
+# Data directory (preprocessed CC2 benchmark splits live on HF Hub, not in git)
+data/
+!baselines/glycobart/data_utils/
+*.parquet
+*.xlsx
+*.npz
+*.csv
+!row_manifest_stub.csv

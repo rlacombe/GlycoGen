@@ -1,0 +1,15 @@
+# GlycoGen — consolidated runtime dependencies.
+# Individual train.py files also carry PEP 723 inline-dep headers for
+# `hf jobs uv run` execution.
+torch>=2.4
+numpy<2
+pandas
+numpy_indexed
+scikit-learn
+huggingface_hub>=0.24
+transformers>=4.44
+glycowork
+# candycrunch is imported only by data_utils/make_numerical.py (an optional
+# cross-check script; data_utils/make_aligned_numerical_pkls.py re-implements
+# peak binning directly without requiring the candycrunch package).
+# candycrunch
